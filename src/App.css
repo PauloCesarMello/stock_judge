@@ -732,10 +732,36 @@
     font-size: 26px;
   }
 
+  .profile-badges {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .profile-badges-row {
+    justify-content: center;
+  }
+
+  .profile-valuation-badges {
+    justify-content: center;
+  }
+
+  .profile-valuation-item {
+    align-items: center;
+  }
+
   .profile-header {
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .profile-price-row {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .profile-meta {

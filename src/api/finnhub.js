@@ -5,7 +5,7 @@ export async function fetchCompanyProfile(ticker) {
   const key = ticker.toUpperCase();
   if (profileCache.has(key)) return profileCache.get(key);
 
-  const res = await fetch(`/finnhub/stock/profile2?symbol=${encodeURIComponent(key)}`);
+  const res = await fetch(`/api/finnhub-profile?symbol=${encodeURIComponent(key)}`);
   if (!res.ok) {
     profileCache.set(key, null);
     return null;
@@ -31,8 +31,8 @@ export async function fetchStockQuote(ticker) {
   if (quoteCache.has(key)) return quoteCache.get(key);
 
   const [quoteRes, metricRes] = await Promise.all([
-    fetch(`/finnhub/quote?symbol=${encodeURIComponent(key)}`),
-    fetch(`/finnhub/stock/metric?symbol=${encodeURIComponent(key)}&metric=all`),
+    fetch(`/api/finnhub-quote?symbol=${encodeURIComponent(key)}`),
+    fetch(`/api/finnhub-metric?symbol=${encodeURIComponent(key)}`),
   ]);
 
   if (!quoteRes.ok) {

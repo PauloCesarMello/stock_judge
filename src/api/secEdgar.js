@@ -1,5 +1,5 @@
-const TICKERS_URL = '/sec-tickers';
-const COMPANY_FACTS_URL = '/sec-api/api/xbrl/companyfacts/CIK';
+const TICKERS_URL = '/api/sec-tickers';
+const COMPANY_FACTS_URL = '/api/sec-facts/';
 
 let tickersCache = null;
 let tickersList = null;
@@ -137,7 +137,7 @@ export async function fetchCompanyFacts(cik, companyName) {
     return companyFactsCache.get(paddedCik);
   }
 
-  const url = `${COMPANY_FACTS_URL}${paddedCik}.json`;
+  const url = `${COMPANY_FACTS_URL}${paddedCik}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch data for CIK ${cik}`);
   const data = await res.json();

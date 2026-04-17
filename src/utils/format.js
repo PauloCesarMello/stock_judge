@@ -1,25 +1,19 @@
-export function formatNumber(num) {
-  if (num == null || isNaN(num)) return 'N/A';
-  if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-  if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-  if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-  if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-  return num.toFixed(2);
+export function formatDollar(value) {
+  if (value === null || value === undefined) return 'N/A';
+  const abs = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(0)}M`;
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
 }
 
-export function formatCurrency(num, currency = 'USD') {
-  if (num == null || isNaN(num)) return 'N/A';
-  const symbol = currency === 'BRL' ? 'R$' : '$';
-  return symbol + formatNumber(num);
+export function formatPercent(value) {
+  if (value === null || value === undefined) return 'N/A';
+  return `${(value * 100).toFixed(1)}%`;
 }
 
-export function formatPrice(num, currency = 'USD') {
-  if (num == null || isNaN(num)) return 'N/A';
-  const symbol = currency === 'BRL' ? 'R$' : '$';
-  return symbol + num.toFixed(2);
-}
-
-export function formatEmployees(num) {
-  if (num == null) return 'N/A';
-  return num.toLocaleString();
+export function formatRatio(value) {
+  if (value === null || value === undefined) return 'N/A';
+  return value.toFixed(2) + 'x';
 }

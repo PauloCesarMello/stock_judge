@@ -1,107 +1,141 @@
-import { useState } from 'react';
-import './App.css';
+import { useState, useEffect } from 'react';
+import { loadTickers, fetchCompanyFacts } from './api/secEdgar';
+import { fetchCompanyProfile, fetchStockQuote } from './api/finnhub';
+import { calculateMetrics } from './utils/metrics';
 import SearchBar from './components/SearchBar';
-import CompanyProfile from './components/CompanyProfile';
-import HealthScore from './components/HealthScore';
+import CompanyHeader from './components/CompanyHeader';
+import MetricCard from './components/MetricCard';
 import About from './components/About';
-import { getMarket } from './utils/marketDetect';
-import { getMacroData } from './api/macro';
-import { getUSProfile, getUSFinancials } from './api/finnhub';
-import { getBRProfile, getBRFinancials } from './api/brapi';
-import { calculateHealthScore, calculateValuation, getFinalSignal } from './utils/scoring';
+import './App.css';
 
-function App() {
+const PRIMARY_METRICS = [
+  { label: 'Revenue', metricKey: 'revenue' },
+  { label: 'Net Income', metricKey: 'netIncome' },
+  { label: 'Operating Margin', metricKey: 'operatingMargin' },
+  { label: 'Cash Flow from Operations', metricKey: 'cfo' },
+  { label: 'Free Cash Flow', metricKey: 'fcf' },
+  { label: 'FCF Margin', metricKey: 'fcfMargin' },
+  { label: 'Cash Flow from Investing', metricKey: 'cfi' },
+  { label: 'Cash Flow from Financing', metricKey: 'cff' },
+  { label: 'Available Cash', metricKey: 'cash' },
+  { label: 'Total Debt', metricKey: 'totalDebt' },
+  { label: 'Return on Invested Capital', metricKey: 'roic' },
+  { label: 'Are Profits Backed by Real Cash?', metricKey: 'earningsQuality' },
+  { label: 'Investment Intensity', metricKey: 'investmentIntensity' },
+  { label: 'Years to Pay Off Debt', metricKey: 'debtToEbitda' },
+];
+
+export default function App() {
+  const [tickersLoaded, setTickersLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-  const [page, setPage] = useState('home');
+  const [companyData, setCompanyData] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [selectedTicker, setSelectedTicker] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [quote, setQuote] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
 
-  async function handleSearch(ticker) {
-    setLoading(true);
+  useEffect(() => {
+    loadTickers()
+      .then(() => setTickersLoaded(true))
+      .catch(() => setError('Failed to load company list. Please refresh the page.'));
+  }, []);
+
+  async function handleSelect(item) {
     setError(null);
-    setResult(null);
+    setLoading(true);
+    setCompanyData(null);
+    setMetrics(null);
+    setProfile(null);
+    setQuote(null);
+    setSelectedTicker(item.ticker);
 
     try {
-      const market = getMarket(ticker);
-      let profile, financials;
-
-      if (market === 'BR') {
-        [profile, financials] = await Promise.all([
-          getBRProfile(ticker),
-          getBRFinancials(ticker),
-        ]);
-      } else {
-        [profile, financials] = await Promise.all([
-          getUSProfile(ticker),
-          getUSFinancials(ticker),
-        ]);
-        if (!profile.employees && financials.revPerEmployeeM && financials.revPerShare && profile.marketCap && profile.currentPrice > 0) {
-          const shares = profile.marketCap / profile.currentPrice;
-          const totalRevenueM = (financials.revPerShare * shares) / 1e6;
-          profile.employees = Math.round(totalRevenueM / financials.revPerEmployeeM);
-        }
+      const [data, profileData, quoteData] = await Promise.all([
+        fetchCompanyFacts(item.cik, item.name),
+        fetchCompanyProfile(item.ticker).catch(() => null),
+        fetchStockQuote(item.ticker).catch(() => null),
+      ]);
+      if (data.periods.length === 0) {
+        setError(`No annual filing data found for ${item.name} (${item.ticker}).`);
+        setLoading(false);
+        return;
       }
-
-      const health = calculateHealthScore(financials);
-      const valuation = calculateValuation({
-        ...financials,
-        currentPrice: profile.currentPrice,
-      });
-      const signal = getFinalSignal(health.verdict, valuation.verdict);
-
-      setResult({ profile, financials, health, valuation, signal, macro: null, market });
-
-      getMacroData(market)
-        .then(macro => setResult(prev => prev ? { ...prev, macro } : prev))
-        .catch(() => {});
-    } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setCompanyData(data);
+      setMetrics(calculateMetrics(data.periods));
+      setProfile(profileData);
+      setQuote(quoteData);
+    } catch {
+      setError(`Could not load financial data for ${item.ticker}. The company may not have XBRL filings available.`);
     } finally {
       setLoading(false);
     }
   }
 
-  if (page === 'about') {
-    return <About onBack={() => setPage('home')} />;
-  }
-
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-brand">
-          <span className="header-icon">{'\u2696\uFE0F'}</span>
+      <header className="app-header">
+        <button
+          type="button"
+          className="app-title-button"
+          onClick={() => setShowAbout(false)}
+        >
           <h1>StockJudge</h1>
-        </div>
-        <p>Analyze stocks. Get a verdict.</p>
-        <button className="header-about" onClick={() => setPage('about')}>
-          How it works
+        </button>
+        <p className="tagline">Understand any public company's finances in plain English</p>
+        <button
+          type="button"
+          className="about-link"
+          onClick={() => setShowAbout((v) => !v)}
+        >
+          {showAbout ? 'Back to app' : 'About'}
         </button>
       </header>
 
-      <SearchBar onSearch={handleSearch} loading={loading} />
-
-      {loading && (
-        <div className="loading">
-          <div className="spinner" />
-          <p>Analyzing financials...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="error">
-          <p>{error}</p>
-        </div>
-      )}
-
-      {result && (
+      {showAbout ? (
+        <About />
+      ) : (
         <>
-          <CompanyProfile profile={result.profile} signal={result.signal} health={result.health} valuation={result.valuation} macro={result.macro} />
+          <SearchBar onSelect={handleSelect} disabled={!tickersLoaded} />
 
-          <HealthScore health={result.health} />
+          {!tickersLoaded && !error && (
+            <div className="status-message">Loading company directory...</div>
+          )}
+
+          {loading && (
+            <div className="status-message">
+              <div className="spinner" />
+              Loading financial data for {selectedTicker}...
+            </div>
+          )}
+
+          {error && <div className="error-message">{error}</div>}
+
+          {metrics && companyData && (
+            <div className="results">
+              <CompanyHeader
+                name={companyData.companyName}
+                ticker={selectedTicker}
+                profile={profile}
+                quote={quote}
+                metrics={metrics}
+              />
+
+              <div className="metrics-grid">
+                {PRIMARY_METRICS.map((m) => (
+                  <MetricCard
+                    key={m.metricKey}
+                    label={m.label}
+                    metricKey={m.metricKey}
+                    metrics={metrics}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
-
-export default App;
